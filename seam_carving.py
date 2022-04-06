@@ -41,20 +41,46 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
     """
 
     def calculate_cost_matrix() -> NDArray:
-        pixel_energy_matrix
+        working_cost_matrix = np.zeros_like(current_image)
+        rows = working_cost_matrix.shape[0]
+        cols = working_cost_matrix.shape[1]
 
-def find_optimal_seam(cost_matrix: NDArray) -> Seam:
-    pixels = []
-    last_column_index = cost_matrix.shape[0] - 1
-    row_index = np.argmin(cost_matrix[last_column_index])
-    pixels.append((last_column_index, row_index))
-    for i in range(last_column_index):
-        column_index = last_column_index - 1
-        if cost_matrix[column_index, row_index] == pixel_energy_matrix[column_index, row_index] + cost_matrix[
-            column_index - 1, row_index] + c_left(column_index, row_index)
+        left = np.roll(current_image, shift=1, axis=1)
+        right = np.roll(current_image, shift=-1, axis=1)
+        above = np.roll(current_image, shift=1, axis=0)
 
-    return Seam(pixels)
+        # calculate Cv for entire matrix
+        cv_matrix = np.abs(right - left)
+        cv_matrix[:, 0] = 255.0  # Cv(i,0) is undefined - set to 255.0 according to guidelines
+        cv_matrix[:, cols-1] = 255.0  # Cv(i,cols-1) is undefined
 
+        # calculate Cl for entire matrix
+        cl_matrix = cv_matrix + np.abs(above - left)
+        cl_matrix[0, :] = 255  # Cl(0,j) is undefined
+        cl_matrix[:, 0] = 255  # Cl(i,0) is undefined
+        cl_matrix[cl_matrix > 255] = 255
+
+        # calculate Cr for entire matrix
+        cr_matrix = cv_matrix + np.abs(above - right)
+        cr_matrix[0, :] = 255  # Cr(0,j) is undefined
+        cr_matrix[:, cols-1] = 255.0  # Cr(i,cols-1) is undefined
+
+
+        return working_cost_matrix
+
+    def find_optimal_seam(cost_matrix: NDArray) -> Seam:
+        pixels = []
+        last_column_index = cost_matrix.shape[0] - 1
+        row_index = np.argmin(cost_matrix[last_column_index])
+        pixels.append((last_column_index, row_index))
+        for i in range(last_column_index):
+            column_index = last_column_index - 1
+            # if cost_matrix[column_index, row_index] == pixel_energy_matrix[column_index, row_index] + cost_matrix[
+            #     column_index - 1, row_index] + c_left(column_index, row_index)
+
+        return Seam(pixels)
+
+    index_mapping_matrix = None #todo: implement this matrix
     pixel_energy_matrix = get_gradients(deepcopy(image))
     vertical_seams_to_find = abs(out_width - image.shape[1])
     horizontal_seams_to_find = abs(out_width - image.shape[0])
