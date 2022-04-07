@@ -5,25 +5,8 @@ import numpy as np
 
 from utils import get_gradients, to_grayscale
 
-NDArray = Any
 
-
-class Seam:
-    def __init__(self, pixels: NDArray):
-        self.pixels = pixels
-
-
-class Pixel:
-    def __init__(self, i: int, j: int):
-        self.indices = np.array([i, j])
-
-
-# pixel_energy_matrix = None
-# index_mapping_matrix = None
-# vertical_seams = None
-# horizontal_seams = None
-# vertical_seams_to_find = -1
-# horizontal_seams_to_find = -1
+NDArray = np.ndarray
 
 def resize(image: NDArray, out_height: int, out_width: int, forward_implementation: bool) -> Dict[str, NDArray]:
     """
@@ -109,30 +92,72 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
 
         return working_forward_looking_cost_matrix, cl_matrix, cv_matrix, cr_matrix
 
-    def find_optimal_seam(cost_matrix: NDArray) -> Seam:
-        pixels = []
-        last_column_index = cost_matrix.shape[0] - 1
-        row_index = np.argmin(cost_matrix[last_column_index])
-        pixels.append((last_column_index, row_index))
-        for i in range(last_column_index):
-            column_index = last_column_index - 1
-            # if cost_matrix[column_index, row_index] == pixel_energy_matrix[column_index, row_index] + cost_matrix[
-            #     column_index - 1, row_index] + c_left(column_index, row_index)
+    def find_optimal_seam() -> Tuple[NDArray, NDArray]:
+        current_seam = np.array(cost_matrix.shape[0])
+        original_index_seam = np.array(cost_matrix.shape[0])
+        row = cost_matrix.shape[0] - 1
+        col = np.argmin(cost_matrix[row])
+        original_index_seam[row] = index_mapping_matrix[row, col]
+        current_seam[row] = col
+        while row > 0:
+            if col > 0 and cost_matrix[row, col] == pixel_energy_matrix[row, col] + \
+                    cost_matrix[row - 1, col - 1] + c_l_matrix[row, col]:
+                col -= 1
+            elif col < current_image.shape[1] - 1 and cost_matrix[row, col] == pixel_energy_matrix[
+                row, index_mapping_matrix[row, col]] + cost_matrix[row - 1, col + 1] + c_r_matrix[row, col]:
+                col += 1
+            row -= 1
+            original_index_seam[row] = index_mapping_matrix[row, col]
+            current_seam[row] = col
+        return original_index_seam, current_seam
 
-        return Seam(pixels)
+    def shift_matrix(image, seam):
+        mask = create_mask(seam, dimensions)
 
-    index_mapping_matrix = None  # todo: implement this matrix
+    def create_mask()
+
+    
     pixel_energy_matrix = get_gradients(deepcopy(image))
     vertical_seams_to_find = abs(out_width - image.shape[1])
-    horizontal_seams_to_find = abs(out_width - image.shape[0])
+    horizontal_seams_to_find = abs(out_height - image.shape[0])
+    vertical_seams = np.array((vertical_seams_to_find, image.shape[0]))
+    horizontal_seams = np.array((horizontal_seams_to_find, image.shape[1]))
     # initialize_pixel_energy_matrix()
-    # initialize_index_mapping_matrix(dimensions)
+    index_mapping_matrix = np.indices((image.shape[0], image.shape[1]))[1]
     current_image = to_grayscale(image)
 
     for i in range(vertical_seams_to_find):
-        cost_matrix = calculate_forward_looking_cost_matrix()
-        seam = find_optimal_seam(cost_matrix)
-        remove_seam(seam, current_image)  # remove from image, add seam to list, shift index matrix
+        cost_matrix, c_v_matrix, c_l_matrix, c_r_matrix = calculate_forward_looking_cost_matrix()
+        original_index_seam, current_seam = find_optimal_seam()
+        vertical_seams[i] = original_index_seam
+        shift_matrix(current_image, current_seam)
+        shift_matrix(index_mapping_matrix, current_seam)
+        shift_matrix(pixel_energy_matrix, current_seam)
+
+    vertical_seam_image = paint_seams_in_image(np.copy(image), vertical_seams, mask, color)
+    if out_width < image.shape[1]:
+        rgb_image_without_vertical_seams = remove_seams(np.copy(image), vertical_seams)
+    else:
+
+        #todo: change to resized image
+
+    current_image = np.rot90(current_image, k=1, axes=(0,1))
+    index_mapping_matrix = np.rot90(index_mapping_matrix, k=1, axes=(0,1))
+    pixel_energy_matrix = np.rot90(pixel_energy_matrix, k=1, axes=(0,1))
+
+    for i in range(horizontal_seams_to_find):
+        cost_matrix, c_v_matrix, c_l_matrix, c_r_matrix = calculate_cost_matrix()
+        original_index_seam, current_seam = find_optimal_seam()
+        horizontal_seams[i] = original_index_seam
+        shift_matrix(current_image, current_seam)
+        shift_matrix(index_mapping_matrix, current_seam)
+        shift_matrix(pixel_energy_matrix, current_seam)
+
+    rotated_rgb_image = np.rot90(rgb_image_without_vertical_seams, k=1, axes=(0, 1))
+    rotated_horizontal_seam_image = paint_seams_in_image(rotated_rgb_image, mask, color)
+    horizontal_seam_image = np.rot90(rgb_image_without_vertical_seams, k=-1, axes=(0, 1))
+
+
 
     # raise NotImplementedError('You need to implement this!')
     # TODO: return { 'resized' : img1, 'vertical_seams' : img2 ,'horizontal_seams' : img3}
