@@ -13,10 +13,9 @@ class Seam:
         self.pixels = pixels
 
 
-
 class Pixel:
     def __init__(self, i: int, j: int):
-        self.indices = np.array([i,j])
+        self.indices = np.array([i, j])
 
 
 # pixel_energy_matrix = None
@@ -44,6 +43,30 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
         working_cost_matrix = np.zeros_like(current_image)
         rows = working_cost_matrix.shape[0]
         cols = working_cost_matrix.shape[1]
+        # calculate first row of cost matrix
+        working_cost_matrix[0] = np.copy(pixel_energy_matrix[0])
+        #  calculate remaining rest
+        for row in range(1, rows):
+            cost_above = working_cost_matrix[row - 1]
+            cost_above_left = np.roll(cost_above, shift=1, axis=0)
+            cost_above_left[0] = 255.0
+            cost_above_right = np.roll(cost_above, shift=-1, axis=0)
+            cost_above_right[cols - 1] = 255.0
+            working_cost_matrix[row, 0] = pixel_energy_matrix[row, 0] + min(cost_above[0], cost_above_right[0])
+            working_cost_matrix[row, cols - 1] = pixel_energy_matrix[row, cols - 1] + min(
+                cost_above[cols - 1],
+                cost_above_left[cols - 1])
+            working_cost_matrix[row, 1:cols - 1] = pixel_energy_matrix[row, 1:cols - 1] + min(
+                cost_above[1:cols - 1],
+                cost_above_left[1:cols - 1],
+                cost_above_right[1:cols - 1])
+
+        return working_cost_matrix
+
+    def calculate_forward_looking_cost_matrix() -> (NDArray, NDArray, NDArray, NDArray):
+        working_forward_looking_cost_matrix = np.zeros_like(current_image)
+        rows = working_forward_looking_cost_matrix.shape[0]
+        cols = working_forward_looking_cost_matrix.shape[1]
 
         left = np.roll(current_image, shift=1, axis=1)
         right = np.roll(current_image, shift=-1, axis=1)
@@ -52,7 +75,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
         # calculate Cv for entire matrix
         cv_matrix = np.abs(right - left)
         cv_matrix[:, 0] = 255.0  # Cv(i,0) is undefined - set to 255.0 according to guidelines
-        cv_matrix[:, cols-1] = 255.0  # Cv(i,cols-1) is undefined
+        cv_matrix[:, cols - 1] = 255.0  # Cv(i,cols-1) is undefined
 
         # calculate Cl for entire matrix
         cl_matrix = cv_matrix + np.abs(above - left)
@@ -63,10 +86,28 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
         # calculate Cr for entire matrix
         cr_matrix = cv_matrix + np.abs(above - right)
         cr_matrix[0, :] = 255  # Cr(0,j) is undefined
-        cr_matrix[:, cols-1] = 255.0  # Cr(i,cols-1) is undefined
+        cr_matrix[:, cols - 1] = 255.0  # Cr(i,cols-1) is undefined
 
+        # calculate first row of cost matrix
+        working_forward_looking_cost_matrix[0] = np.copy(pixel_energy_matrix[0])
+        #  calculate remaining rest
+        for row in range(1, rows):
+            cost_above = working_forward_looking_cost_matrix[row - 1]
+            cost_above_left = np.roll(cost_above, shift=1, axis=0)
+            cost_above_left[0] = 255.0
+            cost_above_right = np.roll(cost_above, shift=-1, axis=0)
+            cost_above_right[cols - 1] = 255.0
+            working_forward_looking_cost_matrix[row, 0] = pixel_energy_matrix[row, 0] + min(
+                (cost_above[0] + cv_matrix[row, 0]), (cost_above_right[0] + cr_matrix[row, 0]))
+            working_forward_looking_cost_matrix[row, cols - 1] = pixel_energy_matrix[row, cols - 1] + min(
+                (cost_above[cols - 1] + cv_matrix[row, cols - 1]),
+                (cost_above_left[cols - 1] + cl_matrix[row, cols - 1]))
+            working_forward_looking_cost_matrix[row, 1:cols - 1] = pixel_energy_matrix[row, 1:cols - 1] + min(
+                (cost_above[1:cols - 1] + cv_matrix[row, 1:cols - 1]),
+                (cost_above_left[1:cols - 1] + cl_matrix[row, 1:cols - 1]),
+                (cost_above_right[1:cols - 1] + cr_matrix[row, 1:cols - 1]))
 
-        return working_cost_matrix
+        return working_forward_looking_cost_matrix, cl_matrix, cv_matrix, cr_matrix
 
     def find_optimal_seam(cost_matrix: NDArray) -> Seam:
         pixels = []
@@ -80,7 +121,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
 
         return Seam(pixels)
 
-    index_mapping_matrix = None #todo: implement this matrix
+    index_mapping_matrix = None  # todo: implement this matrix
     pixel_energy_matrix = get_gradients(deepcopy(image))
     vertical_seams_to_find = abs(out_width - image.shape[1])
     horizontal_seams_to_find = abs(out_width - image.shape[0])
@@ -89,14 +130,9 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
     current_image = to_grayscale(image)
 
     for i in range(vertical_seams_to_find):
-        cost_matrix = calculate_cost_matrix()
+        cost_matrix = calculate_forward_looking_cost_matrix()
         seam = find_optimal_seam(cost_matrix)
-        remove_seam(seam, current_image) # remove from image, add seam to list, shift index matrix
+        remove_seam(seam, current_image)  # remove from image, add seam to list, shift index matrix
 
     # raise NotImplementedError('You need to implement this!')
     # TODO: return { 'resized' : img1, 'vertical_seams' : img2 ,'horizontal_seams' : img3}
-
-
-
-
-
