@@ -133,6 +133,23 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
                 mask[row, col] = False
         return matrix[mask].reshape(matrix.shape[0], matrix.shape[1]-1)
 
+    def duplicate_seams_in_image(image_to_enlarge: NDArray, mask: NDArray, output_width: int) -> NDArray:
+        enlarged_image = np.array((image_to_enlarge.shape[0], output_width)) #  initialize empty NDArray
+        for row in range(enlarged_image.shape[0]):
+            original_col_index = 0
+            output_col_index = 0
+            while original_col_index < image_to_enlarge.shape[1]:
+                enlarged_image[row, output_col_index] = image_to_enlarge[
+                    row, original_col_index]  # current pixel keeps its original color, regardless of whether it's duplicated or not
+                if not mask[
+                    row, original_col_index]:  # mask[row,original_col_index] == False indicates this is a pixel to duplicate
+                    enlarged_image[row, output_col_index + 1] = image_to_enlarge[row, original_col_index]
+                    output_col_index += 1  # skip next pixel since we already colored it
+                original_col_index += 1
+                output_col_index += 1
+
+        return enlarged_image
+
 
     pixel_energy_matrix = get_gradients(np.copy(image))
     vertical_seams_to_find = abs(out_width - image.shape[1])
