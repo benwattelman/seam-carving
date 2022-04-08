@@ -160,7 +160,10 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
     current_image = to_grayscale(image)
 
     for i in range(vertical_seams_to_find):
-        cost_matrix, c_v_matrix, c_l_matrix, c_r_matrix = calculate_forward_looking_cost_matrix()
+        if forward_implementation:
+            cost_matrix, c_v_matrix, c_l_matrix, c_r_matrix = calculate_forward_looking_cost_matrix()
+        else:
+            cost_matrix = calculate_cost_matrix()
         original_index_seam, current_seam = find_optimal_seam(forward_implementation)
         vertical_seams[i] = original_index_seam
         shift_matrix(current_image) # optional - replace with: current_image = shift_matrix_with_mask(current_image, [current_seam])
