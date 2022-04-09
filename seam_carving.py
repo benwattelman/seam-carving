@@ -179,10 +179,9 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
             cost_matrix = calculate_cost_matrix()
         original_index_seam, current_seam = find_optimal_seam()
         vertical_seams[i] = original_index_seam
-        shift_matrix(
-            current_image)  # optional - replace with: current_image = shift_matrix_with_mask(current_image, [current_optimal_seam])
-        shift_matrix(index_mapping_matrix)  # as above
-        shift_matrix(pixel_energy_matrix)  # as above
+        current_image = shift_matrix_with_mask(current_image, np.array([current_seam]))
+        index_mapping_matrix = shift_matrix_with_mask(index_mapping_matrix, np.array([current_seam]))  # as above
+        pixel_energy_matrix = shift_matrix_with_mask(pixel_energy_matrix, np.array([current_seam]))  # as above
 
     mask_for_vertical_seam_image = get_mask_for_matrix_and_seams(image, vertical_seams)
     vertical_seam_image = paint_seams_in_image(np.copy(image), mask_for_vertical_seam_image, "red")
