@@ -156,6 +156,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
 
         return image_to_paint
 
+    ### Main flow ###
     pixel_energy_matrix = get_gradients(np.copy(image))
     vertical_seams_to_find = abs(out_width - image.shape[1])
     horizontal_seams_to_find = abs(out_height - image.shape[0])
@@ -163,6 +164,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
     horizontal_seams = np.array((horizontal_seams_to_find, out_width))
     index_mapping_matrix = np.indices((image.shape[0], image.shape[1]))[1]
     current_image = to_grayscale(image)
+    images_dict = dict.fromkeys(['resized', 'vertical_seams','horizontal_seams'])
 
     for i in range(vertical_seams_to_find):
         if forward_implementation:
@@ -177,6 +179,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
 
     mask_for_vertical_seam_image = np.ones_like(vertical_seams, dtype=bool)
     vertical_seam_image = paint_seams_in_image(np.copy(image), mask_for_vertical_seam_image, "red")
+    images_dict['vertical_seams'] = vertical_seam_image
     if out_width < image.shape[1]:
         rgb_image_without_vertical_seams = shift_matrix_with_mask(np.copy(image), vertical_seams)
     else:
@@ -198,6 +201,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
     rotated_rgb_image = np.rot90(rgb_image_without_vertical_seams, k=1, axes=(0, 1))
     rotated_horizontal_seam_image = paint_seams_in_image(rotated_rgb_image, mask_for_horizontal_seam_image, "black")
     horizontal_seam_image = np.rot90(rgb_image_without_vertical_seams, k=-1, axes=(0, 1))
+    images_dict['horizontal_seams'] = horizontal_seam_image
 
 
 
