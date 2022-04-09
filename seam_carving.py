@@ -38,8 +38,9 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
             working_cost_matrix[row, cols - 1] = pixel_energy_matrix[row, cols - 1] + min(
                 cost_above[cols - 1],
                 cost_above_left[cols - 1])
-            minimal_cost_above = np.minimum(np.minimum(cost_above[1:cols - 1], cost_above_left[1:cols - 1]), cost_above_right[1:cols - 1])
-            working_cost_matrix[row, 1:cols-1] = pixel_energy_matrix[row, 1:cols - 1] + minimal_cost_above
+            minimal_cost_above = np.minimum(np.minimum(cost_above[1:cols - 1], cost_above_left[1:cols - 1]),
+                                            cost_above_right[1:cols - 1])
+            working_cost_matrix[row, 1:cols - 1] = pixel_energy_matrix[row, 1:cols - 1] + minimal_cost_above
 
         return working_cost_matrix
 
@@ -83,30 +84,33 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
                 (cost_above[cols - 1] + cv_matrix[row, cols - 1]),
                 (cost_above_left[cols - 1] + cl_matrix[row, cols - 1]))
             minimal_cost_above = np.minimum(
-                np.minimum((cost_above[1:cols - 1] + cv_matrix[row, 1:cols - 1]), (cost_above_left[1:cols - 1] + cl_matrix[row, 1:cols - 1])),
+                np.minimum((cost_above[1:cols - 1] + cv_matrix[row, 1:cols - 1]),
+                           (cost_above_left[1:cols - 1] + cl_matrix[row, 1:cols - 1])),
                 (cost_above_right[1:cols - 1] + cr_matrix[row, 1:cols - 1]))
-            working_forward_looking_cost_matrix[row, 1:cols - 1] = pixel_energy_matrix[row, 1:cols - 1] + minimal_cost_above
+            working_forward_looking_cost_matrix[row, 1:cols - 1] = pixel_energy_matrix[row,
+                                                                   1:cols - 1] + minimal_cost_above
 
         return working_forward_looking_cost_matrix, cl_matrix, cv_matrix, cr_matrix
 
     def find_optimal_seam() -> Tuple[NDArray, NDArray]:
-        current_seam = np.array(cost_matrix.shape[0])
-        original_index_seam = np.array(cost_matrix.shape[0])
+        current_optimal_seam = np.zeros(cost_matrix.shape[0])
+        current_original_index_seam = np.zeros(cost_matrix.shape[0])
         row = cost_matrix.shape[0] - 1
         col = np.argmin(cost_matrix[row])
-        original_index_seam[row] = index_mapping_matrix[row, col]
-        current_seam[row] = col
+        current_original_index_seam[row] = index_mapping_matrix[row, col]
+        current_optimal_seam[row] = col
         if forward_implementation:
             while row > 0:
                 if col > 0 and cost_matrix[row, col] == pixel_energy_matrix[row, col] + \
                         cost_matrix[row - 1, col - 1] + c_l_matrix[row, col]:
                     col -= 1
                 elif col < current_image.shape[1] - 1 and \
-                        cost_matrix[row, col] == pixel_energy_matrix[row, index_mapping_matrix[row, col]] + cost_matrix[row - 1, col + 1] + c_r_matrix[row, col]:
+                        cost_matrix[row, col] == pixel_energy_matrix[row, index_mapping_matrix[row, col]] + cost_matrix[
+                    row - 1, col + 1] + c_r_matrix[row, col]:
                     col += 1
                 row -= 1
-                original_index_seam[row] = index_mapping_matrix[row, col]
-                current_seam[row] = col
+                current_original_index_seam[row] = index_mapping_matrix[row, col]
+                current_optimal_seam[row] = col
         else:
             while row > 0:
                 if col > 0 and cost_matrix[row, col] == pixel_energy_matrix[row, col] + \
@@ -116,17 +120,17 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
                     row, index_mapping_matrix[row, col]] + cost_matrix[row - 1, col + 1]:
                     col += 1
                 row -= 1
-                original_index_seam[row] = index_mapping_matrix[row, col]
-                current_seam[row] = col
-        return original_index_seam, current_seam
+                current_original_index_seam[row] = index_mapping_matrix[row, col]
+                current_optimal_seam[row] = col
+        return current_original_index_seam, current_optimal_seam
 
     def shift_matrix(matrix: NDArray):
         for row, col in enumerate(current_seam):
-            matrix[row][col:-1] = matrix[row][col+1:]
+            matrix[row][col:-1] = matrix[row][col + 1:]
 
     def shift_matrix_with_mask(matrix: NDArray, seams: NDArray) -> NDArray:
         mask = get_mask_for_matrix_and_seams(matrix, seams)
-        return matrix[mask].reshape(matrix.shape[0], matrix.shape[1]-1)
+        return matrix[mask].reshape(matrix.shape[0], matrix.shape[1] - 1)
 
     def get_mask_for_matrix_and_seams(matrix: NDArray, seams: NDArray) -> NDArray:
         mask = np.ones_like(matrix, dtype=bool)
@@ -136,7 +140,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
         return mask
 
     def duplicate_seams_in_image(image_to_enlarge: NDArray, mask: NDArray, output_width: int) -> NDArray:
-        enlarged_image = np.array((image_to_enlarge.shape[0], output_width)) #  initialize empty NDArray
+        enlarged_image = np.zeros((image_to_enlarge.shape[0], output_width))  # initialize empty NDArray
         for row in range(enlarged_image.shape[0]):
             original_col_index = 0
             output_col_index = 0
@@ -153,7 +157,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
         return enlarged_image
 
     def paint_seams_in_image(image_to_paint: NDArray, mask: NDArray, color: str) -> NDArray:
-        color_to_use = [255, 0, 0] if color == "red" else [0, 0, 0,] # [255, 0, 0] is red, [0, 0, 0,] is black
+        color_to_use = [255, 0, 0] if color == "red" else [0, 0, 0, ]  # [255, 0, 0] is red, [0, 0, 0,] is black
         image_to_paint[mask == False] = color_to_use
 
         return image_to_paint
@@ -162,11 +166,11 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
     pixel_energy_matrix = get_gradients(np.copy(image))
     vertical_seams_to_find = abs(out_width - image.shape[1])
     horizontal_seams_to_find = abs(out_height - image.shape[0])
-    vertical_seams = np.array((vertical_seams_to_find, image.shape[0]))
-    horizontal_seams = np.array((horizontal_seams_to_find, out_width))
+    vertical_seams = np.zeros((vertical_seams_to_find, image.shape[0]))
+    horizontal_seams = np.zeros((horizontal_seams_to_find, out_width))
     index_mapping_matrix = np.indices((image.shape[0], image.shape[1]))[1]
     current_image = to_grayscale(np.copy(image))
-    images_dict = dict.fromkeys(['resized', 'vertical_seams','horizontal_seams'])
+    images_dict = dict.fromkeys(['resized', 'vertical_seams', 'horizontal_seams'])
 
     for i in range(vertical_seams_to_find):
         if forward_implementation:
@@ -175,19 +179,21 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
             cost_matrix = calculate_cost_matrix()
         original_index_seam, current_seam = find_optimal_seam()
         vertical_seams[i] = original_index_seam
-        shift_matrix(current_image) # optional - replace with: current_image = shift_matrix_with_mask(current_image, [current_seam])
-        shift_matrix(index_mapping_matrix) # as above
-        shift_matrix(pixel_energy_matrix) # as above
+        shift_matrix(
+            current_image)  # optional - replace with: current_image = shift_matrix_with_mask(current_image, [current_optimal_seam])
+        shift_matrix(index_mapping_matrix)  # as above
+        shift_matrix(pixel_energy_matrix)  # as above
 
     mask_for_vertical_seam_image = get_mask_for_matrix_and_seams(image, vertical_seams)
     vertical_seam_image = paint_seams_in_image(np.copy(image), mask_for_vertical_seam_image, "red")
     images_dict['vertical_seams'] = vertical_seam_image
-    rgb_image_without_vertical_seams = shift_matrix_with_mask(np.copy(image), vertical_seams) if out_width < image.shape[1]\
+    rgb_image_without_vertical_seams = shift_matrix_with_mask(np.copy(image), vertical_seams) if out_width < \
+                                                                                                 image.shape[1] \
         else duplicate_seams_in_image(np.copy(image), mask_for_vertical_seam_image, out_width)
 
-    current_image = np.rot90(current_image, k=1, axes=(0,1))
-    index_mapping_matrix = np.rot90(index_mapping_matrix, k=1, axes=(0,1))
-    pixel_energy_matrix = np.rot90(pixel_energy_matrix, k=1, axes=(0,1))
+    current_image = np.rot90(current_image, k=1, axes=(0, 1))
+    index_mapping_matrix = np.rot90(index_mapping_matrix, k=1, axes=(0, 1))
+    pixel_energy_matrix = np.rot90(pixel_energy_matrix, k=1, axes=(0, 1))
 
     for i in range(horizontal_seams_to_find):
         cost_matrix, c_v_matrix, c_l_matrix, c_r_matrix = calculate_cost_matrix()
