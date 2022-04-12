@@ -190,14 +190,13 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
     mask_for_vertical_seam_image = get_mask_for_matrix_and_seams(image, vertical_seams)
     vertical_seam_image = paint_seams_in_image(np.copy(image), mask_for_vertical_seam_image, "red")
     image_dict['vertical_seams'] = vertical_seam_image
-    rgb_image_without_vertical_seams = shift_3d_matrix_with_mask(np.copy(image), vertical_seams) if out_width < \
+    rgb_image_modified_vertical_seams = shift_3d_matrix_with_mask(np.copy(image), vertical_seams) if out_width < \
                                                                                                  image.shape[1] \
         else duplicate_seams_in_image(np.copy(image), mask_for_vertical_seam_image, out_width)
 
-    current_image = np.rot90(current_image, k=1, axes=(0, 1))
-    index_mapping_matrix = np.indices((image.shape[0], out_width))[1]
-    index_mapping_matrix = np.rot90(index_mapping_matrix, k=1, axes=(0, 1))
-    pixel_energy_matrix = np.rot90(pixel_energy_matrix, k=1, axes=(0, 1))
+    current_image = np.rot90(to_grayscale(np.copy(rgb_image_modified_vertical_seams)), k=1, axes=(0, 1))
+    index_mapping_matrix = np.indices(current_image.shape)[1]
+    pixel_energy_matrix = np.rot90(pixel_energy_matrix, k=1, axes=(0, 1)) # todo: pixel energy matrix should probably be calculated again
 
     for i in range(horizontal_seams_to_find):
         if forward_implementation:
@@ -210,20 +209,20 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
         index_mapping_matrix = shift_2d_matrix_with_mask(index_mapping_matrix, np.array([current_seam]))
         pixel_energy_matrix = shift_2d_matrix_with_mask(pixel_energy_matrix, np.array([current_seam]))
 
-    rotated_rgb_image = np.rot90(rgb_image_without_vertical_seams, k=1, axes=(0, 1))
+    rotated_rgb_image = np.rot90(rgb_image_modified_vertical_seams, k=1, axes=(0, 1))
     mask_for_horizontal_seam_image = get_mask_for_matrix_and_seams(rotated_rgb_image, horizontal_seams)
     rotated_horizontal_seam_image = paint_seams_in_image(np.copy(rotated_rgb_image), mask_for_horizontal_seam_image,
                                                          "black")
     horizontal_seam_image = np.rot90(rotated_horizontal_seam_image, k=-1, axes=(0, 1))
     image_dict['horizontal_seams'] = horizontal_seam_image
 
-    rgb_image_without_horizontal_seams = \
-        shift_2d_matrix_with_mask(np.copy(rgb_image_without_vertical_seams), horizontal_seams) if \
-            out_height < rgb_image_without_vertical_seams.shape[0] \
-            else duplicate_seams_in_image(np.copy(rgb_image_without_vertical_seams), mask_for_horizontal_seam_image,
+    rgb_image_modified_horizontal_seams = \
+        shift_3d_matrix_with_mask(np.copy(rotated_rgb_image), horizontal_seams) if \
+            out_height < rgb_image_modified_vertical_seams.shape[0] \
+            else duplicate_seams_in_image(np.copy(rotated_rgb_image), mask_for_horizontal_seam_image,
                                           out_height)
 
-    image_dict['resized'] = rgb_image_without_horizontal_seams
+    image_dict['resized'] = np.rot90(rgb_image_modified_horizontal_seams, k=-1, axes=(0,1))
 
     return image_dict
     # raise NotImplementedError('You need to implement this!')
