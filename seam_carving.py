@@ -226,5 +226,3 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
     image_dict['resized'] = np.rot90(rgb_image_modified_horizontal_seams, k=-1, axes=(0,1))
 
     return image_dict
-    # raise NotImplementedError('You need to implement this!')
-    # TODO: return { 'resized' : img1, 'vertical_seams' : img2 ,'horizontal_seams' : img3}
