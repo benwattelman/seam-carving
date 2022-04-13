@@ -67,6 +67,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
         # calculate Cr for entire matrix
         cr_matrix = cv_matrix + np.abs(above - right)
         cr_matrix[0, :] = 255  # Cr(0,j) is undefined
+        cr_matrix[:, 0] = 255  # Cr(i,0) is undefined
         cr_matrix[:, cols - 1] = 255.0  # Cr(i,cols-1) is undefined
 
         # calculate first row of cost matrix
@@ -87,8 +88,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
                 np.minimum((cost_above[1:cols - 1] + cv_matrix[row, 1:cols - 1]),
                            (cost_above_left[1:cols - 1] + cl_matrix[row, 1:cols - 1])),
                 (cost_above_right[1:cols - 1] + cr_matrix[row, 1:cols - 1]))
-            working_forward_looking_cost_matrix[row, 1:cols - 1] = pixel_energy_matrix[row,
-                                                                   1:cols - 1] + minimal_cost_above
+            working_forward_looking_cost_matrix[row, 1:cols - 1] = pixel_energy_matrix[row, 1:cols - 1] + minimal_cost_above
 
         return working_forward_looking_cost_matrix, cl_matrix, cv_matrix, cr_matrix
 
@@ -178,7 +178,7 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
 
     for i in range(vertical_seams_to_find):
         if forward_implementation:
-            cost_matrix, c_v_matrix, c_l_matrix, c_r_matrix = calculate_forward_looking_cost_matrix()
+            cost_matrix, c_l_matrix, c_v_matrix, c_r_matrix = calculate_forward_looking_cost_matrix()
         else:
             cost_matrix = calculate_cost_matrix()
         original_index_seam, current_seam = find_optimal_seam()
@@ -196,7 +196,8 @@ def resize(image: NDArray, out_height: int, out_width: int, forward_implementati
 
     current_image = np.rot90(to_grayscale(np.copy(rgb_image_modified_vertical_seams)), k=1, axes=(0, 1))
     index_mapping_matrix = np.indices(current_image.shape)[1]
-    pixel_energy_matrix = np.rot90(pixel_energy_matrix, k=1, axes=(0, 1)) # todo: pixel energy matrix should probably be calculated again
+    pixel_energy_matrix = np.rot90(pixel_energy_matrix, k=1, axes=(0, 1)) if out_width < image.shape[1] \
+        else get_gradients(current_image)
 
     for i in range(horizontal_seams_to_find):
         if forward_implementation:
